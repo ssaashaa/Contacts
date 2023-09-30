@@ -51,6 +51,7 @@ final class ContactsViewController: UITableViewController {
                         while index < count {
                             if !names.contains(unknownName) {
                                 self?.saveData(name: unknownName, number: number)
+                                break
                             } else {
                                 unknownName = "Unknown_\(index+1)"
                             }
