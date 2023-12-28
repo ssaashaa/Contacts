@@ -1,20 +1,20 @@
 //
-//  Model.swift
+//  DBService.swift
 //  Contacts
 //
-//  Created by Sasha Stryapkov on 13.12.2023.
+//  Created by Sasha Stryapkov on 28.12.2023.
 //
 
 import CoreData
 import UIKit
 
-protocol ModelDelegate: AnyObject {
+protocol DBDelegate: AnyObject {
     func addressBookFetched(_ addressBook: [Contact])
     func contactFetched(_ contact: Contact)
 }
 
-final class Model {    
-    var delegate: ModelDelegate?
+final class DBService {
+    var delegate: DBDelegate?
     
     private let context = (UIApplication.shared.delegate as! AppDelegate).persistentContainer.viewContext
     
@@ -38,11 +38,13 @@ final class Model {
         
         let taskObject = Contact(entity: entity, insertInto: context)
         
+        taskObject.identifier = UUID().uuidString
+        
         if let fullName = fullName, let phoneNumber = phoneNumber {
             if fullName != "" {
                 taskObject.fullName = fullName
             } else {
-                taskObject.fullName = "Unknown_\(taskObject.identifier)"
+                taskObject.fullName = "Unknown_\(taskObject.identifier ?? "???")"
             }
             taskObject.phoneNumber = phoneNumber
         }
@@ -58,30 +60,19 @@ final class Model {
         }
     }
     
-    func editContact(contactIdentifier: Int64,
-                     newFullName: String?,
-                     newPhoneNumber: String?) {
+    func editContact(identifier: String,
+                     newFullName: String,
+                     newPhoneNumber: String) {
         let fetchRequest: NSFetchRequest<Contact> = Contact.fetchRequest()
         let sortDescriptor = NSSortDescriptor(key: "identifier", ascending: true)
         fetchRequest.sortDescriptors = [sortDescriptor]
         
         guard let objects = try? context.fetch(fetchRequest) else { return }
         
-        for object in objects {
-            if object.identifier == contactIdentifier,
-               let newFullName = newFullName,
-               let newPhoneNumber = newPhoneNumber {
-                
-                if object.fullName != newFullName {
-                    object.fullName = newFullName
-                }
-                
-                if object.phoneNumber != newPhoneNumber {
-                    object.phoneNumber = newPhoneNumber
-                }
-                
-                break
-            }
+        for object in objects where object.identifier == identifier {
+            object.fullName = newFullName
+            object.phoneNumber = newPhoneNumber
+            break
         }
         
         do {
@@ -95,7 +86,7 @@ final class Model {
         }
     }
     
-    func deleteContact(_ contactIdentifier: Int64) {
+    func deleteContact(_ identifier: String) {
         let fetchRequest: NSFetchRequest<Contact> = Contact.fetchRequest()
         let sortDescriptor = NSSortDescriptor(key: "identifier", ascending: true)
         fetchRequest.sortDescriptors = [sortDescriptor]
@@ -103,7 +94,7 @@ final class Model {
         guard var objects = try? context.fetch(fetchRequest) else { return }
         var objectId = 0
         
-        for (id, object) in objects.enumerated() where object.identifier == contactIdentifier {
+        for (id, object) in objects.enumerated() where object.identifier == identifier {
             objectId = id
             context.delete(object)
             break

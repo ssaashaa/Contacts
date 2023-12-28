@@ -10,7 +10,7 @@ import UIKit
 final class MainViewController: UIViewController {
     @IBOutlet private var tableView: UITableView!
     
-    private var model = Model()
+    private var dbService = DBService()
     private var addressBook = [Contact]()
     
     override func viewDidLoad() {
@@ -19,13 +19,13 @@ final class MainViewController: UIViewController {
         tableView.dataSource = self
         tableView.delegate = self
         
-        model.delegate = self
-        model.getAddressBook()
+        dbService.delegate = self
+        dbService.getAddressBook()
         
         setNavigationBar()
     }
     
-    // MARK: - UI
+    // MARK: - Set UI
     
     private func setNavigationBar() {
         title = "Contacts"
@@ -34,14 +34,32 @@ final class MainViewController: UIViewController {
                                                             action: #selector(didTapAddButton))
     }
     
+    // MARK: - Method
+    
     @objc private func didTapAddButton() {
+        let addContactAlert = createAddContactAlert()
+        present(addContactAlert, animated: true)
+    }
+    
+    private func createAddContactAlert() -> UIAlertController {
         let alertController = UIAlertController(title: "Add contact info",
                                                 message: nil,
                                                 preferredStyle: .alert)
         
+        let addContactAction = createAddContactAction(alertController)
+        
         alertController.addAction(UIAlertAction(title: "Cancel",
                                                 style: .cancel))
         
+        alertController.addAction(addContactAction)
+        
+        createAlertTextFields(alertController: alertController,
+                              action: addContactAction)
+        
+        return alertController
+    }
+    
+    private func createAddContactAction(_ alertController: UIAlertController) -> UIAlertAction {
         let addContactAction = UIAlertAction(title: "Add",
                                              style: .default,
                                              handler: {[weak self, weak alertController] _ in
@@ -50,13 +68,16 @@ final class MainViewController: UIViewController {
             let nameField = textFields[0]
             let numberField = textFields[1]
             
-            self?.model.addContact(fullName: nameField.text,
-                                   phoneNumber: numberField.text)
+            self?.dbService.addContact(fullName: nameField.text,
+                                       phoneNumber: numberField.text)
         })
         
         addContactAction.isEnabled = false
-        alertController.addAction(addContactAction)
-        
+                
+        return addContactAction
+    }
+    
+    private func createAlertTextFields(alertController: UIAlertController, action: UIAlertAction) {
         alertController.addTextField { textField in
             textField.placeholder = "Please enter contact name"
             textField.textContentType = .name
@@ -72,17 +93,15 @@ final class MainViewController: UIViewController {
             NotificationCenter.default.addObserver(forName: UITextField.textDidChangeNotification,
                                                    object: textField,
                                                    queue: OperationQueue.main) { _ in
-                addContactAction.isEnabled = (textField.text?.count ?? 0) > 0
+                action.isEnabled = (textField.text?.count ?? 0) > 0
             }
         }
-        
-        present(alertController, animated: true)
     }
 }
 
-// MARK: - Model Delegate
+// MARK: - DB Service Delegate
 
-extension MainViewController: ModelDelegate {
+extension MainViewController: DBDelegate {
     func addressBookFetched(_ addressBook: [Contact]) {
         self.addressBook = addressBook
         tableView.reloadData()
@@ -104,7 +123,9 @@ extension MainViewController: UITableViewDataSource, UITableViewDelegate {
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCell(withIdentifier: "Contact", for: indexPath) as! ContactTableViewCell
         let contact = addressBook[indexPath.row]
-        cell.setCell(contact)
+        if let fullName = contact.fullName {
+            cell.setCell(fullName)
+        }
         
         return cell
     }
@@ -119,8 +140,7 @@ extension MainViewController {
         let contact = addressBook[indexPath.row]
         
         guard let detailedViewController = segue.destination as? DetailedViewController else { return }
-        
-        detailedViewController.model = model
         detailedViewController.contact = contact
+        detailedViewController.dbService = dbService
     }
 }

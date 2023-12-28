@@ -10,7 +10,7 @@ import UIKit
 final class ContactTableViewCell: UITableViewCell {    
     @IBOutlet private weak var contactNameLabel: UILabel!
     
-    func setCell(_ contact: Contact) {
-        contactNameLabel.text = contact.fullName        
+    func setCell(_ fullName: String) {
+        contactNameLabel.text = fullName
     }
 }

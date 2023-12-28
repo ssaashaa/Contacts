@@ -14,41 +14,28 @@ final class DetailedViewController: UIViewController {
     @IBOutlet private weak var phoneNumberTextField: UITextField!
     @IBOutlet private weak var deleteButton: UIButton!
     
-    var model: Model?
+    var dbService: DBService?
     var contact: Contact?
     
-    private var isInEditMode = false {
+    private var isEditMode = false {
         willSet {
-            guard isInEditMode != newValue else {
+            guard isEditMode != newValue else {
                 return
             }
         }
         didSet {
-            changeViewMode(isInEditMode)
+            changeViewMode(isEditMode)
         }
-    }
-    
-    override func viewWillAppear(_ animated: Bool) {
-        super.viewWillAppear(animated)
-        
-        contactNameTextField.text = ""
-        phoneNumberTextField.text = ""
-        
-        guard let contact = contact else {
-            return
-        }
-        
-        contactNameTextField.text = contact.fullName
-        phoneNumberTextField.text = contact.phoneNumber
     }
     
     override func viewDidLoad() {
         super.viewDidLoad()
         
         setView()
+        setContactInfo()
     }
     
-    // MARK: - UI
+    // MARK: - Set UI
     
     private func setNavigationBar() {
         navigationItem.rightBarButtonItem = UIBarButtonItem(title: "Edit",
@@ -58,11 +45,11 @@ final class DetailedViewController: UIViewController {
     }
     
     private func setTextFields() {
-        contactNameTextField.layer.borderColor = BorderColorTextFieldConstants.defaultColor
+        contactNameTextField.layer.borderColor = TextFieldBorder.base.color
         contactNameTextField.layer.borderWidth = 1
         contactNameTextField.layer.cornerRadius = 10
         
-        phoneNumberTextField.layer.borderColor = BorderColorTextFieldConstants.defaultColor
+        phoneNumberTextField.layer.borderColor = TextFieldBorder.base.color
         phoneNumberTextField.layer.borderWidth = 1
         phoneNumberTextField.layer.cornerRadius = 10
     }
@@ -80,6 +67,20 @@ final class DetailedViewController: UIViewController {
         setDeleteButton()
     }
     
+    private func setContactInfo() {
+        contactNameTextField.text = ""
+        phoneNumberTextField.text = ""
+        
+        guard let contact = contact else {
+            return
+        }
+        
+        contactNameTextField.text = contact.fullName
+        phoneNumberTextField.text = contact.phoneNumber
+    }
+    
+    // MARK: - Change UI
+    
     private func changeNavigationBarMode(_ editMode: Bool) {
         if !editMode {
             navigationItem.rightBarButtonItem?.style = .plain
@@ -90,61 +91,25 @@ final class DetailedViewController: UIViewController {
         }
     }
     
-    private func changeTextFieldMode(_ editMode: Bool) {
-        if !editMode {
-            contactNameTextField.isEnabled = false
-            contactNameTextField.layer.borderColor = BorderColorTextFieldConstants.defaultColor
-            NotificationCenter.default.removeObserver(self,
-                                                      name: UITextField.textDidChangeNotification,
-                                                      object: contactNameTextField)
-            
-            phoneNumberTextField.isEnabled = false
-            phoneNumberTextField.layer.borderColor = BorderColorTextFieldConstants.defaultColor
-            NotificationCenter.default.removeObserver(self,
-                                                      name: UITextField.textDidChangeNotification,
-                                                      object: phoneNumberTextField)
+    private func changeContactNameTextFieldMode(_ editMode: Bool) {
+        contactNameTextField.isEnabled = editMode
+        contactNameTextField.layer.borderColor = editMode ? TextFieldBorder.edit.color : TextFieldBorder.base.color
+        
+        if editMode {
+            addContactNameTextFieldObserver()
         } else {
-            contactNameTextField.isEnabled = true
-            contactNameTextField.layer.borderColor = BorderColorTextFieldConstants.editModeColor
-            NotificationCenter.default.addObserver(forName: UITextField.textDidChangeNotification,
-                                                   object: contactNameTextField,
-                                                   queue: OperationQueue.main) { [weak self] _ in
-                if let charactersInNameTextFieldCount = self?.contactNameTextField.text?.count,
-                   let charactersInNumbersTextFieldCount = self?.phoneNumberTextField.text?.count {
-                    
-                    if charactersInNameTextFieldCount > 0 && charactersInNumbersTextFieldCount > 0 {
-                        self?.contactNameTextField.layer.borderColor = BorderColorTextFieldConstants.editModeColor
-                        self?.navigationItem.rightBarButtonItem?.isEnabled = true
-                    } else if charactersInNameTextFieldCount > 0 && charactersInNumbersTextFieldCount == 0 {
-                        self?.contactNameTextField.layer.borderColor = BorderColorTextFieldConstants.editModeColor
-                        self?.navigationItem.rightBarButtonItem?.isEnabled = false
-                    } else if charactersInNameTextFieldCount == 0 {
-                        self?.contactNameTextField.layer.borderColor = BorderColorTextFieldConstants.errorColor
-                        self?.navigationItem.rightBarButtonItem?.isEnabled = false
-                    }
-                }
-            }
-            
-            phoneNumberTextField.isEnabled = true
-            phoneNumberTextField.layer.borderColor = BorderColorTextFieldConstants.editModeColor
-            NotificationCenter.default.addObserver(forName: UITextField.textDidChangeNotification,
-                                                   object: phoneNumberTextField,
-                                                   queue: OperationQueue.main) { [weak self] _ in
-                if let charactersInNumbersTextFieldCount = self?.phoneNumberTextField.text?.count,
-                   let charactersInNameTextFieldCount = self?.contactNameTextField.text?.count {
-                    
-                    if charactersInNumbersTextFieldCount > 0 && charactersInNameTextFieldCount > 0 {
-                        self?.phoneNumberTextField.layer.borderColor = BorderColorTextFieldConstants.editModeColor
-                        self?.navigationItem.rightBarButtonItem?.isEnabled = true
-                    } else if charactersInNumbersTextFieldCount > 0 && charactersInNameTextFieldCount == 0 {
-                        self?.phoneNumberTextField.layer.borderColor = BorderColorTextFieldConstants.editModeColor
-                        self?.navigationItem.rightBarButtonItem?.isEnabled = false
-                    } else if charactersInNumbersTextFieldCount == 0 {
-                        self?.phoneNumberTextField.layer.borderColor = BorderColorTextFieldConstants.errorColor
-                        self?.navigationItem.rightBarButtonItem?.isEnabled = false
-                    }
-                }
-            }
+            removeTextFieldObserver(contactNameTextField)
+        }
+    }
+    
+    private func changePhoneNumberTextFieldMode(_ editMode: Bool) {
+        phoneNumberTextField.isEnabled = editMode
+        phoneNumberTextField.layer.borderColor = editMode ? TextFieldBorder.edit.color : TextFieldBorder.base.color
+        
+        if editMode {
+            addPhoneNumberTextFieldObserver()
+        } else {
+            removeTextFieldObserver(phoneNumberTextField)
         }
     }
     
@@ -158,24 +123,82 @@ final class DetailedViewController: UIViewController {
     
     private func changeViewMode(_ editMode: Bool) {
         changeNavigationBarMode(editMode)
-        changeTextFieldMode(editMode)
+        changeContactNameTextFieldMode(editMode)
+        changePhoneNumberTextFieldMode(editMode)
         changeDeleteButtonMode(editMode)
+    }
+    
+    // MARK: - Observer
+    
+    private func addContactNameTextFieldObserver() {
+        NotificationCenter.default.addObserver(forName: UITextField.textDidChangeNotification,
+                                               object: contactNameTextField,
+                                               queue: OperationQueue.main) { [weak self] _ in
+            if let charactersInNameTextFieldCount = self?.contactNameTextField.text?.count,
+               let charactersInNumbersTextFieldCount = self?.phoneNumberTextField.text?.count {
+                
+                if charactersInNameTextFieldCount > 0 && charactersInNumbersTextFieldCount > 0 {
+                    self?.contactNameTextField.layer.borderColor = TextFieldBorder.edit.color
+                    self?.navigationItem.rightBarButtonItem?.isEnabled = true
+                } else if charactersInNameTextFieldCount > 0 && charactersInNumbersTextFieldCount == 0 {
+                    self?.contactNameTextField.layer.borderColor = TextFieldBorder.edit.color
+                    self?.navigationItem.rightBarButtonItem?.isEnabled = false
+                } else if charactersInNameTextFieldCount == 0 {
+                    self?.contactNameTextField.layer.borderColor = TextFieldBorder.error.color
+                    self?.navigationItem.rightBarButtonItem?.isEnabled = false
+                }
+            }
+        }
+    }
+    
+    private func addPhoneNumberTextFieldObserver() {
+        NotificationCenter.default.addObserver(forName: UITextField.textDidChangeNotification,
+                                               object: phoneNumberTextField,
+                                               queue: OperationQueue.main) { [weak self] _ in
+            if let charactersInNumbersTextFieldCount = self?.phoneNumberTextField.text?.count,
+               let charactersInNameTextFieldCount = self?.contactNameTextField.text?.count {
+                
+                if charactersInNumbersTextFieldCount > 0 && charactersInNameTextFieldCount > 0 {
+                    self?.phoneNumberTextField.layer.borderColor = TextFieldBorder.edit.color
+                    self?.navigationItem.rightBarButtonItem?.isEnabled = true
+                } else if charactersInNumbersTextFieldCount > 0 && charactersInNameTextFieldCount == 0 {
+                    self?.phoneNumberTextField.layer.borderColor = TextFieldBorder.edit.color
+                    self?.navigationItem.rightBarButtonItem?.isEnabled = false
+                } else if charactersInNumbersTextFieldCount == 0 {
+                    self?.phoneNumberTextField.layer.borderColor = TextFieldBorder.error.color
+                    self?.navigationItem.rightBarButtonItem?.isEnabled = false
+                }
+            }
+        }
+    }
+    
+    private func removeTextFieldObserver(_ textField: UITextField) {
+        NotificationCenter.default.removeObserver(self,
+                                                  name: UITextField.textDidChangeNotification,
+                                                  object: textField)
     }
     
     // MARK: - Method
     
     @objc private func didTapEditButton() {
-        guard isInEditMode else {
-            isInEditMode = !isInEditMode
+        guard isEditMode else {
+            isEditMode = !isEditMode
             return
         }
         
         guard let id = contact?.identifier else { return }
-        model?.editContact(contactIdentifier: id,
-                           newFullName: contactNameTextField.text,
-                           newPhoneNumber: phoneNumberTextField.text)
         
-        isInEditMode = !isInEditMode
+        if let oldName = contact?.fullName,
+           let oldPhoneNumber = contact?.phoneNumber,
+           let newName = contactNameTextField.text,
+           let newPhoneNumber = phoneNumberTextField.text {
+            guard oldName != newName || oldPhoneNumber != newPhoneNumber else { isEditMode = !isEditMode; return }
+            dbService?.editContact(identifier: id,
+                                   newFullName: newName,
+                                   newPhoneNumber: newPhoneNumber)
+        }
+
+        isEditMode = !isEditMode
     }
     
     @objc private func didTapDeleteButton() {
@@ -190,7 +213,7 @@ final class DetailedViewController: UIViewController {
                                                 style: .destructive,
                                                 handler: {[weak self] _ in
             guard let id = self?.contact?.identifier else { return }
-            self?.model?.deleteContact(id)
+            self?.dbService?.deleteContact(id)
             self?.navigationController?.popViewController(animated: true)
         })
         
