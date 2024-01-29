@@ -32,6 +32,8 @@ final class MainViewController: UIViewController {
         navigationItem.rightBarButtonItem = UIBarButtonItem(barButtonSystemItem: .add,
                                                             target: self,
                                                             action: #selector(didTapAddButton))
+        
+        navigationItem.rightBarButtonItem?.accessibilityIdentifier = "addButton"
     }
     
     // MARK: - Method

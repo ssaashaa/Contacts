@@ -1,0 +1,24 @@
+{
+  "configurations" : [
+    {
+      "id" : "067AD62B-6A69-47FE-A1F8-FC6D8B128F02",
+      "name" : "Configuration 1",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+
+  },
+  "testTargets" : [
+    {
+      "target" : {
+        "containerPath" : "container:Contacts.xcodeproj",
+        "identifier" : "5AE7C1592B5ABD6100B0A0EA",
+        "name" : "ContactsUITests"
+      }
+    }
+  ],
+  "version" : 1
+}
